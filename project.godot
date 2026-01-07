@@ -18,6 +18,19 @@ config/icon="res://icon.svg"
 
 project/assembly_name="ScaffoldUI"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[gdunit4]
+
+settings/test/test_lookup_folder="Tests"
+ui/toolbar/run_overall=true
+hooks/session_hooks=Dictionary[String, bool]({
+"res://addons/gdUnit4/src/core/hooks/GdUnitHtmlReporterTestSessionHook.gd": false,
+"res://addons/gdUnit4/src/core/hooks/GdUnitXMLReporterTestSessionHook.gd": false
+})
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
