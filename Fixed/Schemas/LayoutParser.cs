@@ -1,11 +1,14 @@
 using Godot;
 using ScaffoldUI.Fixed.Commons;
 using System;
+using System.Collections.Generic;
 
 namespace ScaffoldUI.Fixed.Schemas
 {
     public class LayoutParser
     {
+        public const int MAX_SHORTHAND_AMOUNT = 4;
+
         /// <summary>
         /// Parses all values from the <paramref name="data"/>.
         /// </summary>
@@ -13,10 +16,10 @@ namespace ScaffoldUI.Fixed.Schemas
         {
             ParsedLayoutData parsed = new ParsedLayoutData
             {
-                Width = [.. ParseDimension(data.Width)],
-                Height = [.. ParseDimension(data.Height)],
-                X = [.. ParseDimension(data.X)],
-                Y = [.. ParseDimension(data.Y)]
+                Width = ParseDimension(data.Width),
+                Height = ParseDimension(data.Height),
+                X = ParseDimension(data.X),
+                Y = ParseDimension(data.Y)
             };
 
             ParseMargin(data.Margin, parsed);
@@ -32,12 +35,11 @@ namespace ScaffoldUI.Fixed.Schemas
         /// The input should not contain '(' or ')' (there is no depth in one dimension)
         /// </remarks>
         /// <returns>List of LayoutValue representing the dimension value.</returns
-        public static LayoutValue[] ParseDimension(ReadOnlySpan<char> input)
+        public static List<LayoutValue> ParseDimension(ReadOnlySpan<char> input)
         {
-            LayoutValue[] values = new LayoutValue[2];
+            List<LayoutValue> values = [];
             int start = 0;
             int numberEnd = 0;
-            int index = 0;
             for (int i = 0; i < input.Length; i++)
             {
                 char c = input[i];
@@ -48,15 +50,8 @@ namespace ScaffoldUI.Fixed.Schemas
 
                 if (c == '-' || c == '+')
                 {
-                    if (index >= values.Length)
-                    {
-                        LayoutValue[] valuesGrown = new LayoutValue[values.Length * 2];
-                        Array.Copy(values, valuesGrown, values.Length);
-                        values = valuesGrown;
-                    }
-                    LayoutValue? value = ParseValue(input.Slice(start, i - start), numberEnd - start);
-                    if (value != null) values[index] = (LayoutValue)value;
-                    index++;
+                    LayoutValue? nullableValue = ParseValue(input.Slice(start, i - start), numberEnd - start);
+                    if (nullableValue is LayoutValue value) values.Add(value);
                     numberEnd = 0;
                     start = i;
                     continue;
@@ -69,7 +64,7 @@ namespace ScaffoldUI.Fixed.Schemas
             }
 
             LayoutValue? finalValue = ParseValue(input.Slice(start), numberEnd - start);
-            if (finalValue != null) values[index] = (LayoutValue)finalValue;
+            if (finalValue != null) values.Add((LayoutValue)finalValue);
 
             return values;
         }
@@ -89,14 +84,14 @@ namespace ScaffoldUI.Fixed.Schemas
 
             float number = FloatParser.Parse(input[..numberEndIndex]);
             ReadOnlySpan<char> unit = input[numberEndIndex..];
-            switch (unit)
+            switch (unit.Trim())
             {
                 case Units.UNIT_PX:
                     return new(UnitType.Pixels, number);
                 case Units.UNIT_PERCENT:
                     return new(UnitType.Percent, number);
                 default:
-                    GD.PushWarning($"Failed to value unit '{unit}'. Interpreting it as px instead");
+                    GD.PushWarning($"Failed to value unit '{unit}'. Interpreting it as px instead. Number {number}");
                     return new(UnitType.Pixels, number);
             }
         }
@@ -121,7 +116,7 @@ namespace ScaffoldUI.Fixed.Schemas
         /// </remarks>
         public static void ParseMargin(ReadOnlySpan<char> input, ParsedLayoutData parsedLayout)
         {
-            LayoutValue[][] marginValues = new LayoutValue[4][];
+            List<List<LayoutValue>> marginValues = new(MAX_SHORTHAND_AMOUNT);
             input = input.Trim();
             bool openBracket = false;
             int start = 0;
@@ -144,8 +139,8 @@ namespace ScaffoldUI.Fixed.Schemas
 
                 if (c == ' ' && !openBracket)
                 {
-                    if (input[i - start] == ')') marginValues[index] = ParseDimension(input.Slice(start, i - start - 1)); // -1 to ignore the ')'
-                    else marginValues[index] = ParseDimension(input.Slice(start, i - start));
+                    if (input[i - start] == ')') marginValues.Add(ParseDimension(input.Slice(start, i - start - 1))); // -1 to ignore the ')'
+                    else marginValues.Add(ParseDimension(input.Slice(start, i - start)));
                     start = i + 1;
                     index++;
                     continue;
@@ -153,35 +148,35 @@ namespace ScaffoldUI.Fixed.Schemas
             }
 
             if (input[^1] == ')') input = input.Slice(0, input.Length - 1);
-            marginValues[index] = ParseDimension(input.Slice(start));
+            marginValues.Add(ParseDimension(input.Slice(start)));
 
-            switch (marginValues.Length)
+            switch (marginValues.Count)
             {
                 case 0:
                     return;
                 case 1:
-                    parsedLayout.MarginLeft = [.. marginValues[0]];
-                    parsedLayout.MarginRight = [.. marginValues[0]];
-                    parsedLayout.MarginTop = [.. marginValues[0]];
-                    parsedLayout.MarginBottom = [.. marginValues[0]];
+                    parsedLayout.MarginLeft = marginValues[0];
+                    parsedLayout.MarginRight = marginValues[0];
+                    parsedLayout.MarginTop = marginValues[0];
+                    parsedLayout.MarginBottom = marginValues[0];
                     return;
                 case 2:
-                    parsedLayout.MarginTop = [.. marginValues[0]];
-                    parsedLayout.MarginBottom = [.. marginValues[0]];
-                    parsedLayout.MarginLeft = [.. marginValues[1]];
-                    parsedLayout.MarginRight = [.. marginValues[1]];
+                    parsedLayout.MarginTop = marginValues[0];
+                    parsedLayout.MarginBottom = marginValues[0];
+                    parsedLayout.MarginLeft = marginValues[1];
+                    parsedLayout.MarginRight = marginValues[1];
                     return;
                 case 3:
-                    parsedLayout.MarginTop = [.. marginValues[0]];
-                    parsedLayout.MarginLeft = [.. marginValues[1]];
-                    parsedLayout.MarginRight = [.. marginValues[1]];
-                    parsedLayout.MarginBottom = [.. marginValues[2]];
+                    parsedLayout.MarginTop = marginValues[0];
+                    parsedLayout.MarginLeft = marginValues[1];
+                    parsedLayout.MarginRight = marginValues[1];
+                    parsedLayout.MarginBottom = marginValues[2];
                     return;
                 case 4:
-                    parsedLayout.MarginTop = [.. marginValues[0]];
-                    parsedLayout.MarginRight = [.. marginValues[1]];
-                    parsedLayout.MarginBottom = [.. marginValues[2]];
-                    parsedLayout.MarginLeft = [.. marginValues[3]];
+                    parsedLayout.MarginTop = marginValues[0];
+                    parsedLayout.MarginRight = marginValues[1];
+                    parsedLayout.MarginBottom = marginValues[2];
+                    parsedLayout.MarginLeft = marginValues[3];
                     return;
             }
         }
