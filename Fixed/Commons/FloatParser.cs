@@ -1,3 +1,4 @@
+using Godot;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -41,12 +42,13 @@ namespace ScaffoldUI.Fixed.Commons
         public static float Parse(ReadOnlySpan<char> span)
         {
             float result = 0;
-            byte i = 0;
-            sbyte sign = 1;
+            int i = 0;
+            int sign = 1;
+            char c;
 
             while (i < span.Length)
             {
-                char c = span[i];
+                c = span[i];
                 if (c == ' ')
                 {
                     i++;
@@ -58,14 +60,18 @@ namespace ScaffoldUI.Fixed.Commons
                     sign = -1;
                     break;
                 }
+                else if (c == '+')
+                {
+                    i++;
+                    break;
+                }
 
-                i++;
                 break;
             }
 
             while (i < span.Length && span[i] != '.')
             {
-                char c = span[i++];
+                c = span[i++];
                 if (c == ' ') continue;
                 result = result * 10 + (c - '0');
             }
@@ -77,7 +83,7 @@ namespace ScaffoldUI.Fixed.Commons
                 byte amount = 0;
                 while (i < span.Length)
                 {
-                    char c = span[i++];
+                    c = span[i++];
                     if (c == ' ') continue;
                     frac = frac * 10 + (c - '0');
                     amount += 1;
