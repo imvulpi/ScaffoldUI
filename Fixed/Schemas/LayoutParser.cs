@@ -1,6 +1,7 @@
 using Godot;
 using ScaffoldUI.Fixed.Commons;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 
 namespace ScaffoldUI.Fixed.Schemas
@@ -37,17 +38,18 @@ namespace ScaffoldUI.Fixed.Schemas
         /// <returns>List of LayoutValue representing the dimension value.</returns
         public static List<LayoutValue> ParseDimension(ReadOnlySpan<char> input)
         {
-            List<LayoutValue> values = [];
+            List<LayoutValue> values = new(4);
             int start = 0;
             int numberEnd = 0;
-            for (int i = 0; i < input.Length; i++)
+            int length = input.Length;
+            for (int i = 0; i < length; i++)
             {
                 char c = input[i];
                 if (char.IsDigit(c) || c == '.' || c == ' ')
                 {
                     continue;
                 }
-
+                
                 if (c == '-' || c == '+')
                 {
                     LayoutValue? nullableValue = ParseValue(input.Slice(start, i - start), numberEnd - start);
@@ -56,11 +58,9 @@ namespace ScaffoldUI.Fixed.Schemas
                     start = i;
                     continue;
                 }
-
+                
                 if (numberEnd == 0)
-                {
                     numberEnd = i;
-                }
             }
 
             LayoutValue? finalValue = ParseValue(input.Slice(start), numberEnd - start);

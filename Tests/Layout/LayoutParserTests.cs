@@ -58,6 +58,15 @@ public class LayoutParserTests
         ScaffoldAssertions.AssertLayoutValue(values[1]).IsEqual(15, UnitType.Percent);
     }
 
+    [TestCase]
+    public void ParseDimension_ShouldHandleNegativeValues()
+    {
+        var values = LayoutParser.ParseDimension("-5px + 15%".AsSpan());
+        Assertions.AssertInt(values.Count).IsEqual(2);
+        ScaffoldAssertions.AssertLayoutValue(values[0]).IsEqual(-5, UnitType.Pixels);
+        ScaffoldAssertions.AssertLayoutValue(values[1]).IsEqual(15, UnitType.Percent);
+    }
+
     #endregion
 
     #region ParseMargin
